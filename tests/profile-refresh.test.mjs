@@ -1,9 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {refreshedProfile,fetchSnapshot} from '../scripts/refresh-published-profile.mjs';
+import {refreshedProfile,fetchSnapshot,calendarMetadata,refreshedReadme} from '../scripts/refresh-published-profile.mjs';
 import {profileSnapshot} from '../src/widgets/github-profile.mjs';
 const snapshot={schemaVersion:1,source:'github-profile',year:2026,asOfDate:'2026-01-02',days:[{date:'2026-01-01',count:1},{date:'2026-01-02',count:4}]};
 const template='<svg><text>Keep approved artwork and typography</text><!-- CALENDAR_START --><svg x="514" y="348" width="450" height="96" preserveAspectRatio="xMinYMin meet"><style>@font-face{font-family:CurrentMono;src:url(data:font/woff2;base64,TESTFONT)}</style></svg><!-- CALENDAR_END --></svg>';
+test('public calendar caption stays short and contains no maintenance instructions',()=>{
+  const caption=calendarMetadata('2026-08-30T21:46:15.810Z');
+  assert.equal(caption,'<sub>Profile contributions · updated 30 Aug 2026, 21:46 UTC.</sub>');
+  assert.doesNotMatch(caption,/PROFILE_TOKEN|workflow|snapshot|successful fetch|\.810/);
+  assert.throws(()=>calendarMetadata('invalid'),/timestamp/);
+  const readme='Keep profile copy\n<!-- CALENDAR_METADATA_START -->old timestamp<!-- CALENDAR_METADATA_END -->\nKeep footer';
+  const updated=refreshedReadme(readme,'2026-08-30T21:46:15.810Z');
+  assert.ok(updated.startsWith('Keep profile copy\n'));
+  assert.ok(updated.endsWith('\nKeep footer'));
+  assert.ok(updated.includes(caption));
+  assert.throws(()=>refreshedReadme('missing markers','2026-08-30T21:46:15.810Z'),/metadata missing/);
+});
 test('refresh preserves placement and unrelated artwork',async()=>{
   const updated=await refreshedProfile(template,snapshot);
   assert.ok(updated.includes('<text>Keep approved artwork and typography</text>'));

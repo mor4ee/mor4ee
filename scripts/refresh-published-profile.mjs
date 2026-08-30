@@ -3,6 +3,20 @@ import {fileURLToPath} from 'node:url';
 import {profileSnapshot} from '../src/widgets/github-profile.mjs';
 import {renderCurrentCalendar} from './render-current-calendar.mjs';
 
+export function calendarMetadata(fetchedAt) {
+  const date=new Date(fetchedAt);
+  if(!Number.isFinite(date.getTime())) throw new Error('Invalid calendar update timestamp');
+  const day=new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(date);
+  const time=date.toISOString().slice(11,16);
+  return `<sub>Profile contributions · updated ${day}, ${time} UTC.</sub>`;
+}
+
+export function refreshedReadme(readme,fetchedAt) {
+  const marker=/<!-- CALENDAR_METADATA_START -->[\s\S]*?<!-- CALENDAR_METADATA_END -->/g;
+  if([...readme.matchAll(marker)].length!==1) throw new Error('README calendar metadata missing');
+  return readme.replace(marker,`<!-- CALENDAR_METADATA_START -->\n${calendarMetadata(fetchedAt)}\n<!-- CALENDAR_METADATA_END -->`);
+}
+
 export async function refreshedProfile(svg,snapshot) {
   const fontBase64=svg.match(/font-family:CurrentMono;src:url\(data:font\/woff2;base64,([^)]*)\)/)?.[1];
   if(!fontBase64) throw new Error('Calendar font missing');
@@ -43,9 +57,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)) {
   }
   const path=new URL('../README.md',import.meta.url);
   const readme=await readFile(path,'utf8');
-  const marker=/<!-- CALENDAR_METADATA_START -->[\s\S]*?<!-- CALENDAR_METADATA_END -->/g;
-  if([...readme.matchAll(marker)].length!==1) throw new Error('README calendar metadata missing');
-  results.push([path,readme.replace(marker,`<!-- CALENDAR_METADATA_START -->\nCalendar snapshot through **${snapshot.asOfDate}**. Last successful fetch: **${fetchedAt}**.\n<!-- CALENDAR_METADATA_END -->`)]);
+  results.push([path,refreshedReadme(readme,fetchedAt)]);
   for(const [file,content] of results) await writeFile(file,content);
   console.log('Updated desktop/mobile calendar and successful-fetch timestamp. Dates/counts only.');
 }

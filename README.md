@@ -4,9 +4,7 @@
 </picture>
 
 <details>
-<summary>Profile in text · calendar details</summary>
-
-## mor4ee
+<summary>Text version</summary>
 
 Independent developer & creator. Curious about unusual devices, interfaces, and ideas worth building.
 
@@ -18,9 +16,7 @@ Independent developer & creator. Curious about unusual devices, interfaces, and 
 - **Design & content:** interfaces, visuals, and ideas worth sharing.
 
 <!-- CALENDAR_METADATA_START -->
-Calendar snapshot through **2026-08-30**. Last successful fetch: **2026-08-30T21:46:15.810Z**.
+<sub>Profile contributions · updated 30 Aug 2026, 21:46 UTC.</sub>
 <!-- CALENDAR_METADATA_END -->
-
-All-profile GitHub contributions, including private dates/counts only. A GitHub Actions workflow refreshes the SVG every 6 hours once PROFILE_TOKEN is configured; it can also be run manually. Failed updates preserve the last successful image and timestamp. The cutoff day may be incomplete; contributions are not just commits. Intensity: 0, 1–3, 4–7, 8–15, 16+. Slashes mean unavailable dates; outlines mean dates after cutoff. Other segmented bars are decorative, not progress measurements.
 
 </details>
