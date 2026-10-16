@@ -1,4 +1,4 @@
-import {readFile,writeFile} from 'node:fs/promises';
+import {appendFile,readFile,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {profileSnapshot} from '../src/widgets/github-profile.mjs';
 import {renderCurrentCalendar} from './render-current-calendar.mjs';
@@ -47,17 +47,46 @@ export async function fetchSnapshot(token) {
   return {snapshot:profileSnapshot(await response.json(),fetchedAt),fetchedAt};
 }
 
-if(process.argv[1]===fileURLToPath(import.meta.url)) {
-  const {snapshot,fetchedAt}=await fetchSnapshot(process.env.PROFILE_TOKEN);
+// Compare deterministic renders, including exact counts and cutoff date, before
+// touching the publication timestamp. The SVGs themselves are the saved state.
+export async function planRefresh({desktop,mobile,readme},snapshot,fetchedAt) {
+  // Validate metadata even on a no-op; broken templates must not pass silently.
+  const nextReadme=refreshedReadme(readme,fetchedAt);
+  const nextDesktop=await refreshedProfile(desktop,snapshot);
+  const nextMobile=await refreshedProfile(mobile,snapshot);
+  const changed=nextDesktop!==desktop || nextMobile!==mobile;
+  return {changed,desktop:nextDesktop,mobile:nextMobile,
+    readme:changed?nextReadme:readme};
+}
+
+export function refreshSummary({changed},snapshot,fetchedAt) {
+  return `### Profile calendar check
+
+- Source checked successfully: ${new Date(fetchedAt).toISOString()}
+- Calendar cutoff (UTC): ${snapshot.asOfDate}
+- Publication: ${changed?'updated (calendar content or cutoff changed)':'unchanged (published files and update time retained)'}
+- Authenticated owner aggregates, including available private activity; dates/counts only.
+`;
+}
+
+export async function refreshPublishedProfile({snapshot,fetchedAt},
+  {root=new URL('../',import.meta.url),summaryPath}={}) {
+  const paths=['assets/profile.svg','assets/profile.mobile.svg','README.md'].map(path=>new URL(path,root));
+  const [desktop,mobile,readme]=await Promise.all(paths.map(path=>readFile(path,'utf8')));
   // Validate and render everything before writing; failed jobs never commit files.
-  const results=[];
-  for(const name of ['profile.svg','profile.mobile.svg']) {
-    const path=new URL(`../assets/${name}`,import.meta.url);
-    results.push([path,await refreshedProfile(await readFile(path,'utf8'),snapshot)]);
+  const result=await planRefresh({desktop,mobile,readme},snapshot,fetchedAt);
+  if(result.changed) {
+    for(const [index,content] of [result.desktop,result.mobile,result.readme].entries()) {
+      await writeFile(paths[index],content);
+    }
   }
-  const path=new URL('../README.md',import.meta.url);
-  const readme=await readFile(path,'utf8');
-  results.push([path,refreshedReadme(readme,fetchedAt)]);
-  for(const [file,content] of results) await writeFile(file,content);
-  console.log('Updated desktop/mobile calendar and successful-fetch timestamp. Dates/counts only.');
+  const summary=refreshSummary(result,snapshot,fetchedAt);
+  if(summaryPath) await appendFile(summaryPath,summary);
+  console.log(summary);
+  return result;
+}
+
+if(process.argv[1]===fileURLToPath(import.meta.url)) {
+  await refreshPublishedProfile(await fetchSnapshot(process.env.PROFILE_TOKEN),
+    {summaryPath:process.env.GITHUB_STEP_SUMMARY});
 }
