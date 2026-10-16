@@ -3,14 +3,38 @@ on:
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/calendar.yml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/calendar.yml'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: profile-calendar
   cancel-in-progress: false
 jobs:
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Test renderer and validation
+        run: node --test tests/*.test.mjs
   refresh:
-    if: github.repository == 'mor4ee/mor4ee'
+    if: github.repository == 'mor4ee/mor4ee' && github.event_name != 'pull_request'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -23,7 +47,7 @@ jobs:
         env:
           PROFILE_TOKEN: ${{ secrets.PROFILE_TOKEN }}
         run: node scripts/refresh-published-profile.mjs
-      - name: Commit successful refresh only
+      - name: Commit changed calendar only
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
